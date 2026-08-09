@@ -26,7 +26,7 @@ export function renderItensTable(container, section, items) {
         <input type="number" min="0" step="1" data-field="item.qtd" data-section="${section}" data-index="${index}" value="${item.qtd}">
       </td>
       <td class="itens-table__preco">
-        <input type="number" min="0" step="0.01" data-field="item.preco" data-section="${section}" data-index="${index}" value="${item.preco}">
+        <input type="number" min="0" step="0.01" data-field="item.preco" data-section="${section}" data-index="${index}" value="${item.preco === 0 ? '' : item.preco}" placeholder="0,00">
       </td>
       <td class="itens-table__subtotal" data-subtotal-cell="${section}-${index}">${brl(calcItemTotal(item))}</td>
       <td>

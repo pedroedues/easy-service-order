@@ -41,10 +41,7 @@
         </div>
 
         <div class="form-section card">
-          <div class="toggle-row">
-            <input type="checkbox" id="toggle-pecas" data-action="toggle-pecas">
-            <label for="toggle-pecas">④ Incluir peças</label>
-          </div>
+          <h2 class="section-title">④ Peças (opcional)</h2>
           <div id="itens-pecas"></div>
         </div>
 
@@ -57,11 +54,17 @@
           <button type="button" class="btn btn--ghost" data-action="nova-os">Nova OS</button>
           <button type="button" class="btn btn--ghost" data-action="imprimir">Imprimir</button>
           <button type="button" class="btn btn--primary" data-action="gerar-pdf">Gerar PDF</button>
-          <a href="#" id="whatsapp-link" class="btn btn--ghost" target="_blank" rel="noopener" hidden>Enviar por WhatsApp</a>
+          <a href="#" id="whatsapp-link" class="btn btn--ghost" target="_blank" rel="noopener" hidden>Enviar orçamento por WhatsApp</a>
+        </div>
+
+        <div class="form-section card">
+          <h2 class="section-title">OS geradas nesta sessão</h2>
+          <div id="historico-root"></div>
         </div>
       </section>
 
       <aside class="preview-panel" id="preview-panel">
+        <button type="button" class="preview-panel__back" data-action="toggle-preview">← Voltar</button>
         <h2 class="section-title">Via do cliente</h2>
         <div id="preview-root"></div>
       </aside>

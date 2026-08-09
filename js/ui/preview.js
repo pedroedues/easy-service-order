@@ -1,5 +1,5 @@
 import { brl, fmtQtd, formatDate, formatOsNumber, escapeHtml } from '../utils/format.js';
-import { calcItemTotal, calcGrandTotal } from '../store.js';
+import { calcItemTotal, calcGrandTotal, isValidItem } from '../store.js';
 
 export function renderPreview(container, state) {
   const { empresa, osSeq, draft } = state;
@@ -36,7 +36,7 @@ export function renderPreview(container, state) {
         ${renderItemsRows(draft.servicos)}
       </div>
 
-      ${draft.pecasAtivo ? `
+      ${draft.pecas.some(isValidItem) ? `
       <div class="preview-doc__section">
         <p class="preview-doc__label">Peças</p>
         ${renderItemsRows(draft.pecas)}

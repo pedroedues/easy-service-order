@@ -30,13 +30,15 @@ export function calcSectionTotal(items) {
 }
 
 export function calcGrandTotal(draft) {
-  const servicosTotal = calcSectionTotal(draft.servicos);
-  const pecasTotal = draft.pecasAtivo ? calcSectionTotal(draft.pecas) : 0;
-  return servicosTotal + pecasTotal;
+  return calcSectionTotal(draft.servicos) + calcSectionTotal(draft.pecas);
 }
 
 export function isValidItem(item) {
   return item.desc.trim() !== '' && Number(item.qtd) > 0;
+}
+
+export function calcValidGrandTotal(draft) {
+  return calcSectionTotal(draft.servicos.filter(isValidItem)) + calcSectionTotal(draft.pecas.filter(isValidItem));
 }
 
 export function createEmptyItem() {
@@ -46,9 +48,8 @@ export function createEmptyItem() {
 export function createEmptyDraft() {
   return {
     cliente: { nome: '', contato: '' },
-    veiculo: { tipo: '', modelo: '', km: '' },
+    veiculo: { tipo: 'Carro', modelo: '', km: '' },
     servicos: [createEmptyItem()],
     pecas: [],
-    pecasAtivo: false,
   };
 }

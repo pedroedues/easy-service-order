@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   empresa: 'talaoos_empresa',
   seq: 'talaoos_seq',
   draft: 'talaoos_draft',
+  historico: 'talaoos_historico',
 };
 
 const DRAFT_SAVE_DELAY_MS = 500;
@@ -55,4 +56,20 @@ export function saveDraft(draft) {
 export function clearDraft() {
   clearTimeout(draftSaveTimer);
   localStorage.removeItem(STORAGE_KEYS.draft);
+}
+
+export function getHistorico() {
+  const raw = localStorage.getItem(STORAGE_KEYS.historico);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export function addHistoricoEntry(entry) {
+  const historico = [entry, ...getHistorico()];
+  localStorage.setItem(STORAGE_KEYS.historico, JSON.stringify(historico));
+  return historico;
 }

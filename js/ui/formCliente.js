@@ -8,7 +8,7 @@ export function renderCliente(container, cliente) {
         <input id="cliente-nome" type="text" data-field="cliente.nome" value="${escapeHtml(cliente.nome)}" placeholder="Nome completo">
       </div>
       <div>
-        <label for="cliente-contato">Contato *</label>
+        <label for="cliente-contato">Contato</label>
         <input id="cliente-contato" type="text" data-field="cliente.contato" value="${escapeHtml(cliente.contato)}" placeholder="Telefone ou WhatsApp">
       </div>
     </div>

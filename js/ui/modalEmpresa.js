@@ -17,6 +17,11 @@ export function renderModalEmpresa(container, empresa, isOpen) {
         </div>
 
         <div class="modal__field">
+          <label for="empresa-responsavel">Nome do responsável (opcional)</label>
+          <input id="empresa-responsavel" type="text" data-field="empresa.responsavel" value="${escapeHtml(empresa?.responsavel || '')}" placeholder="Usado como assinatura do técnico no PDF">
+        </div>
+
+        <div class="modal__field">
           <label for="empresa-logo">Logo (opcional)</label>
           <input id="empresa-logo" type="file" accept="image/*" data-action="upload-logo">
           ${empresa?.logo ? `<img src="${empresa.logo}" alt="Prévia do logo" class="logo-preview">` : ''}

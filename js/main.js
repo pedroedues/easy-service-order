@@ -1,9 +1,10 @@
-import { createStore, calcGrandTotal, isValidItem, createEmptyItem, createEmptyDraft } from './store.js';
+import { createStore, calcGrandTotal, calcValidGrandTotal, isValidItem, createEmptyItem, createEmptyDraft } from './store.js';
 import * as repository from './repository.js';
 import { renderCliente, renderVeiculo } from './ui/formCliente.js';
 import { renderItensTable, updateSubtotalCell } from './ui/formItens.js';
 import { renderPreview } from './ui/preview.js';
 import { renderModalEmpresa } from './ui/modalEmpresa.js';
+import { renderHistorico } from './ui/historico.js';
 import { showToast } from './ui/toast.js';
 import { buildWhatsappLink } from './whatsapp.js';
 import { brl, formatOsNumber, escapeHtml } from './utils/format.js';
@@ -15,12 +16,12 @@ const dom = {
   formVeiculo: document.getElementById('form-veiculo'),
   itensServicos: document.getElementById('itens-servicos'),
   itensPecas: document.getElementById('itens-pecas'),
-  togglePecas: document.getElementById('toggle-pecas'),
   totalGeral: document.getElementById('total-geral'),
   previewRoot: document.getElementById('preview-root'),
   previewPanel: document.getElementById('preview-panel'),
   modalRoot: document.getElementById('modal-root'),
   whatsappLink: document.getElementById('whatsapp-link'),
+  historicoRoot: document.getElementById('historico-root'),
 };
 
 const empresaInicial = repository.getEmpresa();
@@ -56,8 +57,6 @@ function renderForm(state) {
   renderCliente(dom.formCliente, state.draft.cliente);
   renderVeiculo(dom.formVeiculo, state.draft.veiculo);
   renderItensTable(dom.itensServicos, 'servicos', state.draft.servicos);
-  dom.togglePecas.checked = state.draft.pecasAtivo;
-  dom.itensPecas.hidden = !state.draft.pecasAtivo;
   renderItensTable(dom.itensPecas, 'pecas', state.draft.pecas);
   renderTotals(state);
 }
@@ -67,6 +66,7 @@ function renderAll(state) {
   renderForm(state);
   renderPreview(dom.previewRoot, state);
   renderModalEmpresa(dom.modalRoot, pendingEmpresa || state.empresa, state.ui.modalEmpresaOpen);
+  renderHistorico(dom.historicoRoot, repository.getHistorico());
 }
 
 store.subscribe((state) => {
@@ -116,16 +116,8 @@ function removeItem(section, index) {
   renderItensTable(container, section, store.getState().draft[section]);
 }
 
-function togglePecas() {
-  store.setState((state) => ({ draft: { ...state.draft, pecasAtivo: !state.draft.pecasAtivo } }));
-  const state = store.getState();
-  dom.togglePecas.checked = state.draft.pecasAtivo;
-  dom.itensPecas.hidden = !state.draft.pecasAtivo;
-  renderItensTable(dom.itensPecas, 'pecas', state.draft.pecas);
-}
-
 function abrirConfig() {
-  pendingEmpresa = { ...(store.getState().empresa || { nome: '', logo: null, logoW: 0, logoH: 0 }) };
+  pendingEmpresa = { ...(store.getState().empresa || { nome: '', responsavel: '', logo: null, logoW: 0, logoH: 0 }) };
   store.setState((state) => ({ ui: { ...state.ui, modalEmpresaOpen: true } }));
   renderModalEmpresa(dom.modalRoot, pendingEmpresa, true);
 }
@@ -178,7 +170,6 @@ function validarDraft(state) {
   const erros = [];
   if (!state.empresa?.nome?.trim()) erros.push('Cadastre o nome da oficina.');
   if (!state.draft.cliente.nome.trim()) erros.push('Informe o nome do cliente.');
-  if (!state.draft.cliente.contato.trim()) erros.push('Informe o contato do cliente.');
   if (!state.draft.servicos.some(isValidItem)) erros.push('Adicione ao menos um serviço válido.');
   return erros;
 }
@@ -198,13 +189,29 @@ async function gerarPdf() {
     const { generatePdf } = await import('./pdf/generatePdf.js');
     await generatePdf({ empresa: state.empresa, osSeq, draft: state.draft });
 
-    const totalGerado = calcGrandTotal(state.draft);
+    const totalGerado = calcValidGrandTotal(state.draft);
+    const osNumero = formatOsNumber(osSeq);
+
+    repository.addHistoricoEntry({
+      osNumero,
+      cliente: state.draft.cliente.nome,
+      total: totalGerado,
+      dataHora: new Date().toISOString(),
+    });
+
     repository.clearDraft();
     store.setState({ draft: createEmptyDraft(), osSeq: repository.peekNextOsNumber() });
     renderAll(store.getState());
 
     dom.whatsappLink.hidden = false;
-    dom.whatsappLink.href = buildWhatsappLink(state.draft.cliente, osSeq, totalGerado);
+    dom.whatsappLink.href = buildWhatsappLink({
+      empresaNome: state.empresa?.nome || '',
+      cliente: state.draft.cliente,
+      veiculo: state.draft.veiculo,
+      servicos: state.draft.servicos,
+      pecas: state.draft.pecas,
+      total: totalGerado,
+    });
     showToast('PDF gerado com sucesso.', 'success');
   } catch (error) {
     console.error(error);
@@ -240,8 +247,8 @@ document.addEventListener('input', (event) => {
   const { field, section, index } = target.dataset;
   if (!field) return;
 
-  if (field === 'empresa.nome') {
-    pendingEmpresa = { ...pendingEmpresa, nome: target.value };
+  if (field === 'empresa.nome' || field === 'empresa.responsavel') {
+    pendingEmpresa = { ...pendingEmpresa, [field.split('.')[1]]: target.value };
     return;
   }
 
@@ -278,9 +285,6 @@ document.addEventListener('click', (event) => {
       break;
     case 'salvar-config':
       salvarConfig();
-      break;
-    case 'toggle-pecas':
-      togglePecas();
       break;
     case 'add-item':
       addItem(section);

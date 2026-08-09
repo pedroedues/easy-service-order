@@ -1,9 +1,8 @@
 import { brl, fmtQtd, formatOsNumber, formatDate, formatDateTime, sanitizeFilename } from '../utils/format.js';
-import { calcItemTotal, calcGrandTotal } from '../store.js';
+import { calcItemTotal, calcValidGrandTotal, isValidItem } from '../store.js';
 import { shortHash } from '../utils/hash.js';
 
-const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm';
-const AUTOTABLE_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/+esm';
+const VENDOR_BASE = new URL('../vendor/', import.meta.url);
 
 const MARGIN = 20;
 const INK = '#1F2933';
@@ -11,15 +10,40 @@ const INK_MUTED = '#5A6570';
 const STEEL = '#D8DCE1';
 const SIGNAL = '#E8A33D';
 
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${url}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Não foi possível carregar ${url}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensurePdfLibs() {
+  if (!window.jspdf?.jsPDF) {
+    await loadScript(new URL('jspdf.umd.min.js', VENDOR_BASE).href);
+  }
+  if (!window.jspdf?.jsPDF?.API?.autoTable) {
+    await loadScript(new URL('jspdf.plugin.autotable.min.js', VENDOR_BASE).href);
+  }
+}
+
 export async function generatePdf({ empresa, osSeq, draft }) {
-  const { jsPDF } = await import(JSPDF_URL);
-  await import(AUTOTABLE_URL);
+  await ensurePdfLibs();
+  const { jsPDF } = window.jspdf;
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const now = new Date();
   const osNumero = formatOsNumber(osSeq, now);
-  const total = calcGrandTotal(draft);
+  const servicosValidos = draft.servicos.filter(isValidItem);
+  const pecasValidas = draft.pecas.filter(isValidItem);
+  const total = calcValidGrandTotal(draft);
   const codigo = shortHash(`${empresa?.nome || ''}|${osNumero}|${now.toISOString()}|${total}`);
 
   drawHeader(doc, { empresa, osNumero, data: formatDate(now), pageWidth });
@@ -34,14 +58,14 @@ export async function generatePdf({ empresa, osSeq, draft }) {
     ]);
   }
 
-  cursorY = drawItemsTable(doc, cursorY, 'Serviços', draft.servicos);
+  cursorY = drawItemsTable(doc, cursorY, 'Serviços', servicosValidos);
 
-  if (draft.pecasAtivo && draft.pecas.length > 0) {
-    cursorY = drawItemsTable(doc, cursorY, 'Peças', draft.pecas);
+  if (pecasValidas.length > 0) {
+    cursorY = drawItemsTable(doc, cursorY, 'Peças', pecasValidas);
   }
 
   cursorY = drawTotal(doc, cursorY, total, pageWidth);
-  drawSignatures(doc, cursorY, pageWidth);
+  drawSignatures(doc, cursorY, pageWidth, empresa?.responsavel);
   drawFooterOnAllPages(doc, { codigo, emitidoEm: formatDateTime(now) });
 
   const nomeArquivo = `${sanitizeFilename(osNumero)}_${sanitizeFilename(draft.cliente.nome || 'cliente')}.pdf`;
@@ -161,7 +185,7 @@ function drawTotal(doc, y, total, pageWidth) {
   return cursorY + boxHeight + 16;
 }
 
-function drawSignatures(doc, y, pageWidth) {
+function drawSignatures(doc, y, pageWidth, responsavel) {
   const pageHeight = doc.internal.pageSize.getHeight();
   let cursorY = y;
 
@@ -172,17 +196,25 @@ function drawSignatures(doc, y, pageWidth) {
 
   const lineY = cursorY + 15;
   const colWidth = (pageWidth - MARGIN * 2 - 10) / 2;
+  const tecnicoColX = MARGIN + colWidth + 10;
+
+  if (responsavel?.trim()) {
+    doc.setFont('times', 'italic');
+    doc.setFontSize(16);
+    doc.setTextColor(INK);
+    doc.text(responsavel.trim(), tecnicoColX + colWidth / 2, lineY - 3, { align: 'center' });
+  }
 
   doc.setDrawColor(INK);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, lineY, MARGIN + colWidth, lineY);
-  doc.line(MARGIN + colWidth + 10, lineY, MARGIN + colWidth * 2 + 10, lineY);
+  doc.line(tecnicoColX, lineY, tecnicoColX + colWidth, lineY);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(INK_MUTED);
   doc.text('Assinatura do Cliente', MARGIN + colWidth / 2, lineY + 5, { align: 'center' });
-  doc.text('Assinatura do Técnico', MARGIN + colWidth + 10 + colWidth / 2, lineY + 5, { align: 'center' });
+  doc.text('Assinatura do Técnico', tecnicoColX + colWidth / 2, lineY + 5, { align: 'center' });
 }
 
 function drawFooterOnAllPages(doc, { codigo, emitidoEm }) {
