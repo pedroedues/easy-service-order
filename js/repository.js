@@ -1,0 +1,58 @@
+import { createEmptyDraft } from './store.js';
+
+const STORAGE_KEYS = {
+  empresa: 'talaoos_empresa',
+  seq: 'talaoos_seq',
+  draft: 'talaoos_draft',
+};
+
+const DRAFT_SAVE_DELAY_MS = 500;
+let draftSaveTimer = null;
+
+export function getEmpresa() {
+  // Swap for `await fetch('/api/empresa')` once a backend exists.
+  const raw = localStorage.getItem(STORAGE_KEYS.empresa);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export function saveEmpresa(empresa) {
+  // Swap for `await fetch('/api/empresa', { method: 'PUT', body: ... })`.
+  localStorage.setItem(STORAGE_KEYS.empresa, JSON.stringify(empresa));
+}
+
+export function peekNextOsNumber() {
+  // Swap for `await fetch('/api/os/next')`.
+  const raw = localStorage.getItem(STORAGE_KEYS.seq);
+  const seq = raw ? parseInt(raw, 10) : 0;
+  return seq + 1;
+}
+
+export function consumeNextOsNumber() {
+  // Swap for `await fetch('/api/os/next', { method: 'POST' })`.
+  const next = peekNextOsNumber();
+  localStorage.setItem(STORAGE_KEYS.seq, String(next));
+  return next;
+}
+
+export function getDraft() {
+  const raw = localStorage.getItem(STORAGE_KEYS.draft);
+  if (!raw) return null;
+  try {
+    return { ...createEmptyDraft(), ...JSON.parse(raw) };
+  } catch {
+    return null;
+  }
+}
+
+export function saveDraft(draft) {
+  // Swap for `await fetch('/api/draft', { method: 'PUT', body: ... })`.
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(() => {
+    localStorage.setItem(STORAGE_KEYS.draft, JSON.stringify(draft));
+  }, DRAFT_SAVE_DELAY_MS);
+}
+
+export function clearDraft() {
+  clearTimeout(draftSaveTimer);
+  localStorage.removeItem(STORAGE_KEYS.draft);
+}

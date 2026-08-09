@@ -1,0 +1,32 @@
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .app-header__actions,
+  .form-panel,
+  .modal-overlay,
+  .toast-root,
+  .preview-toggle {
+    display: none !important;
+  }
+
+  .app-main {
+    display: block;
+  }
+
+  .preview-panel {
+    position: static;
+    transform: none;
+  }
+
+  .preview-doc {
+    border: none;
+    padding: 0;
+  }
+
+  .itens-table tr,
+  .preview-doc__signatures {
+    break-inside: avoid;
+  }
+}

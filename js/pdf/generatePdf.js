@@ -1,0 +1,202 @@
+import { brl, fmtQtd, formatOsNumber, formatDate, formatDateTime, sanitizeFilename } from '../utils/format.js';
+import { calcItemTotal, calcGrandTotal } from '../store.js';
+import { shortHash } from '../utils/hash.js';
+
+const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm';
+const AUTOTABLE_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/+esm';
+
+const MARGIN = 20;
+const INK = '#1F2933';
+const INK_MUTED = '#5A6570';
+const STEEL = '#D8DCE1';
+const SIGNAL = '#E8A33D';
+
+export async function generatePdf({ empresa, osSeq, draft }) {
+  const { jsPDF } = await import(JSPDF_URL);
+  await import(AUTOTABLE_URL);
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const now = new Date();
+  const osNumero = formatOsNumber(osSeq, now);
+  const total = calcGrandTotal(draft);
+  const codigo = shortHash(`${empresa?.nome || ''}|${osNumero}|${now.toISOString()}|${total}`);
+
+  drawHeader(doc, { empresa, osNumero, data: formatDate(now), pageWidth });
+
+  let cursorY = 45;
+  cursorY = drawInfoSection(doc, cursorY, 'Cliente', [draft.cliente.nome, draft.cliente.contato]);
+
+  if (draft.veiculo.tipo || draft.veiculo.modelo || draft.veiculo.km) {
+    cursorY = drawInfoSection(doc, cursorY, 'Veículo', [
+      [draft.veiculo.tipo, draft.veiculo.modelo].filter(Boolean).join(' · '),
+      draft.veiculo.km ? `${draft.veiculo.km} km` : '',
+    ]);
+  }
+
+  cursorY = drawItemsTable(doc, cursorY, 'Serviços', draft.servicos);
+
+  if (draft.pecasAtivo && draft.pecas.length > 0) {
+    cursorY = drawItemsTable(doc, cursorY, 'Peças', draft.pecas);
+  }
+
+  cursorY = drawTotal(doc, cursorY, total, pageWidth);
+  drawSignatures(doc, cursorY, pageWidth);
+  drawFooterOnAllPages(doc, { codigo, emitidoEm: formatDateTime(now) });
+
+  const nomeArquivo = `${sanitizeFilename(osNumero)}_${sanitizeFilename(draft.cliente.nome || 'cliente')}.pdf`;
+  doc.save(nomeArquivo);
+}
+
+function extractImageFormat(dataUrl) {
+  const match = /^data:image\/(png|jpeg|jpg|webp);/i.exec(dataUrl || '');
+  if (!match) return 'PNG';
+  const ext = match[1].toUpperCase();
+  return ext === 'JPG' ? 'JPEG' : ext;
+}
+
+function drawHeader(doc, { empresa, osNumero, data, pageWidth }) {
+  let textX = MARGIN;
+
+  if (empresa?.logo) {
+    const maxH = 16;
+    const ratio = (empresa.logoW && empresa.logoH) ? empresa.logoW / empresa.logoH : 1;
+    const width = maxH * ratio;
+    doc.addImage(empresa.logo, extractImageFormat(empresa.logo), MARGIN, 12, width, maxH);
+    textX = MARGIN + width + 6;
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(INK);
+  doc.text(empresa?.nome || '', textX, 22);
+
+  doc.setDrawColor(STEEL);
+  doc.setLineWidth(0.4);
+  doc.rect(pageWidth - MARGIN - 45, 12, 45, 12);
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(INK);
+  doc.text(osNumero, pageWidth - MARGIN - 42, 19);
+  doc.setFontSize(9);
+  doc.setTextColor(INK_MUTED);
+  doc.text(data, pageWidth - MARGIN - 42, 23.5);
+
+  doc.setDrawColor(INK);
+  doc.setLineWidth(0.6);
+  doc.line(MARGIN, 35, pageWidth - MARGIN, 35);
+}
+
+function drawInfoSection(doc, y, titulo, linhas) {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(INK_MUTED);
+  doc.text(titulo.toUpperCase(), MARGIN, y);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(INK);
+  let cursor = y + 6;
+  linhas.filter(Boolean).forEach((linha) => {
+    doc.text(String(linha), MARGIN, cursor);
+    cursor += 5;
+  });
+
+  doc.setDrawColor(STEEL);
+  doc.setLineWidth(0.2);
+  doc.line(MARGIN, cursor, doc.internal.pageSize.getWidth() - MARGIN, cursor);
+
+  return cursor + 8;
+}
+
+function drawItemsTable(doc, y, titulo, itens) {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(INK_MUTED);
+  doc.text(titulo.toUpperCase(), MARGIN, y);
+
+  const body = itens.map((item) => [
+    item.desc,
+    fmtQtd(item.qtd),
+    brl(item.preco),
+    brl(calcItemTotal(item)),
+  ]);
+
+  doc.autoTable({
+    startY: y + 3,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [['Descrição', 'Qtd.', 'Unit.', 'Subtotal']],
+    body,
+    styles: { font: 'helvetica', fontSize: 10, textColor: INK, cellPadding: 2.5 },
+    headStyles: { fillColor: '#EDEFF2', textColor: INK, fontStyle: 'bold' },
+    columnStyles: {
+      1: { halign: 'right', cellWidth: 20 },
+      2: { halign: 'right', cellWidth: 28 },
+      3: { halign: 'right', cellWidth: 28 },
+    },
+    rowPageBreak: 'avoid',
+    theme: 'plain',
+  });
+
+  return doc.lastAutoTable.finalY + 8;
+}
+
+function drawTotal(doc, y, total, pageWidth) {
+  const boxHeight = 12;
+  let cursorY = y;
+
+  if (cursorY + boxHeight > doc.internal.pageSize.getHeight() - 40) {
+    doc.addPage();
+    cursorY = MARGIN;
+  }
+
+  doc.setFillColor(SIGNAL);
+  doc.rect(MARGIN, cursorY, pageWidth - MARGIN * 2, boxHeight, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(INK);
+  doc.text('TOTAL GERAL', MARGIN + 4, cursorY + 8);
+  doc.text(brl(total), pageWidth - MARGIN - 4, cursorY + 8, { align: 'right' });
+
+  return cursorY + boxHeight + 16;
+}
+
+function drawSignatures(doc, y, pageWidth) {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let cursorY = y;
+
+  if (cursorY + 30 > pageHeight - 20) {
+    doc.addPage();
+    cursorY = MARGIN + 10;
+  }
+
+  const lineY = cursorY + 15;
+  const colWidth = (pageWidth - MARGIN * 2 - 10) / 2;
+
+  doc.setDrawColor(INK);
+  doc.setLineWidth(0.3);
+  doc.line(MARGIN, lineY, MARGIN + colWidth, lineY);
+  doc.line(MARGIN + colWidth + 10, lineY, MARGIN + colWidth * 2 + 10, lineY);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(INK_MUTED);
+  doc.text('Assinatura do Cliente', MARGIN + colWidth / 2, lineY + 5, { align: 'center' });
+  doc.text('Assinatura do Técnico', MARGIN + colWidth + 10 + colWidth / 2, lineY + 5, { align: 'center' });
+}
+
+function drawFooterOnAllPages(doc, { codigo, emitidoEm }) {
+  const totalPages = doc.internal.getNumberOfPages();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  for (let i = 1; i <= totalPages; i += 1) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(INK_MUTED);
+    doc.text(`Página ${i} de ${totalPages}`, MARGIN, pageHeight - 10);
+    doc.text(`Emitido em ${emitidoEm}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.text(`Cód. ref.: ${codigo}`, pageWidth - MARGIN, pageHeight - 10, { align: 'right' });
+  }
+}
