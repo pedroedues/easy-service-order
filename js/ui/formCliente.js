@@ -38,6 +38,10 @@ export function renderVeiculo(container, veiculo) {
         <label for="veiculo-km">KM</label>
         <input id="veiculo-km" type="text" inputmode="numeric" data-field="veiculo.km" value="${escapeHtml(veiculo.km)}" placeholder="Ex.: 52000">
       </div>
+      <div>
+        <label for="veiculo-placa">Placa (opcional)</label>
+        <input id="veiculo-placa" class="input-uppercase" type="text" maxlength="8" data-field="veiculo.placa" value="${escapeHtml(veiculo.placa)}" placeholder="Sem placa? Deixe em branco">
+      </div>
     </div>
   `;
 }

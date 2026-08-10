@@ -48,7 +48,7 @@ export function createEmptyItem() {
 export function createEmptyDraft() {
   return {
     cliente: { nome: '', contato: '' },
-    veiculo: { tipo: 'Carro', modelo: '', km: '' },
+    veiculo: { tipo: 'Carro', modelo: '', km: '', placa: '' },
     servicos: [createEmptyItem()],
     pecas: [],
   };

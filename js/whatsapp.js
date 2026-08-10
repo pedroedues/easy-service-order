@@ -1,4 +1,4 @@
-import { brl } from './utils/format.js';
+import { brl, normalizePlaca } from './utils/format.js';
 import { isValidItem, calcItemTotal } from './store.js';
 
 function formatItemLines(items) {
@@ -9,7 +9,9 @@ function formatItemLines(items) {
 }
 
 export function buildWhatsappMessage({ empresaNome, cliente, veiculo, servicos, pecas, total }) {
-  const veiculoLabel = [veiculo?.tipo, veiculo?.modelo].filter(Boolean).join(' ');
+  const placa = normalizePlaca(veiculo?.placa);
+  const veiculoBase = [veiculo?.tipo, veiculo?.modelo].filter(Boolean).join(' ');
+  const veiculoLabel = (veiculoBase + (placa ? ` (${placa})` : '')).trim();
   const titulo = veiculoLabel
     ? `*_Orçamento ${empresaNome} - ${veiculoLabel}_*`
     : `*_Orçamento ${empresaNome}_*`;

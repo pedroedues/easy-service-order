@@ -55,6 +55,14 @@ select {
   color: var(--ink);
 }
 
+.input-uppercase {
+  text-transform: uppercase;
+}
+
+.input-uppercase::placeholder {
+  text-transform: none;
+}
+
 input:focus-visible,
 select:focus-visible,
 button:focus-visible,

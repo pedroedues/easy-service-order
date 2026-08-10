@@ -41,6 +41,10 @@ export function sanitizeFilename(value) {
     .toLowerCase();
 }
 
+export function normalizePlaca(value) {
+  return String(value ?? '').trim().toUpperCase();
+}
+
 export function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')

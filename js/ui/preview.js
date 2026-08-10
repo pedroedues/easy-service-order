@@ -1,10 +1,11 @@
-import { brl, fmtQtd, formatDate, formatOsNumber, escapeHtml } from '../utils/format.js';
+import { brl, fmtQtd, formatDate, formatOsNumber, escapeHtml, normalizePlaca } from '../utils/format.js';
 import { calcItemTotal, calcGrandTotal, isValidItem } from '../store.js';
 
 export function renderPreview(container, state) {
   const { empresa, osSeq, draft } = state;
   const total = calcGrandTotal(draft);
-  const temVeiculo = Boolean(draft.veiculo.tipo || draft.veiculo.modelo || draft.veiculo.km);
+  const temVeiculo = Boolean(draft.veiculo.tipo || draft.veiculo.modelo || draft.veiculo.km || draft.veiculo.placa);
+  const placa = normalizePlaca(draft.veiculo.placa);
 
   container.innerHTML = `
     <div class="preview-doc">
@@ -28,7 +29,7 @@ export function renderPreview(container, state) {
       ${temVeiculo ? `
       <div class="preview-doc__section">
         <p class="preview-doc__label">Veículo</p>
-        <p>${[draft.veiculo.tipo, draft.veiculo.modelo].filter(Boolean).map(escapeHtml).join(' · ') || '—'}${draft.veiculo.km ? ` · ${escapeHtml(draft.veiculo.km)} km` : ''}</p>
+        <p>${[draft.veiculo.tipo, draft.veiculo.modelo].filter(Boolean).map(escapeHtml).join(' · ') || '—'}${draft.veiculo.km ? ` · ${escapeHtml(draft.veiculo.km)} km` : ''}${placa ? ` · Placa ${escapeHtml(placa)}` : ''}</p>
       </div>` : ''}
 
       <div class="preview-doc__section">

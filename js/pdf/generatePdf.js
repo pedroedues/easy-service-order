@@ -1,4 +1,4 @@
-import { brl, fmtQtd, formatOsNumber, formatDate, formatDateTime, sanitizeFilename } from '../utils/format.js';
+import { brl, fmtQtd, formatOsNumber, formatDate, formatDateTime, sanitizeFilename, normalizePlaca } from '../utils/format.js';
 import { calcItemTotal, calcValidGrandTotal, isValidItem } from '../store.js';
 import { shortHash } from '../utils/hash.js';
 
@@ -51,9 +51,11 @@ export async function generatePdf({ empresa, osSeq, draft }) {
   let cursorY = 45;
   cursorY = drawInfoSection(doc, cursorY, 'Cliente', [draft.cliente.nome, draft.cliente.contato]);
 
-  if (draft.veiculo.tipo || draft.veiculo.modelo || draft.veiculo.km) {
+  const placa = normalizePlaca(draft.veiculo.placa);
+  if (draft.veiculo.tipo || draft.veiculo.modelo || draft.veiculo.km || placa) {
     cursorY = drawInfoSection(doc, cursorY, 'Veículo', [
       [draft.veiculo.tipo, draft.veiculo.modelo].filter(Boolean).join(' · '),
+      placa ? `Placa ${placa}` : '',
       draft.veiculo.km ? `${draft.veiculo.km} km` : '',
     ]);
   }
