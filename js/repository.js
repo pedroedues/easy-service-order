@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   seq: 'talaoos_seq',
   draft: 'talaoos_draft',
   historico: 'talaoos_historico',
+  currentOsSeq: 'talaoos_current_seq',
 };
 
 const DRAFT_SAVE_DELAY_MS = 500;
@@ -58,6 +59,23 @@ export function clearDraft() {
   localStorage.removeItem(STORAGE_KEYS.draft);
 }
 
+// The OS number assigned to the draft currently being edited, if any has
+// been consumed yet. Kept separate from the draft so "Gerar PDF" can be
+// clicked more than once (e.g. to fix a typo and reissue) without burning a
+// new number each time — only "Nova OS" clears this.
+export function getCurrentOsSeq() {
+  const raw = localStorage.getItem(STORAGE_KEYS.currentOsSeq);
+  return raw ? parseInt(raw, 10) : null;
+}
+
+export function setCurrentOsSeq(seq) {
+  if (seq === null) {
+    localStorage.removeItem(STORAGE_KEYS.currentOsSeq);
+  } else {
+    localStorage.setItem(STORAGE_KEYS.currentOsSeq, String(seq));
+  }
+}
+
 export function getHistorico() {
   const raw = localStorage.getItem(STORAGE_KEYS.historico);
   if (!raw) return [];
@@ -68,8 +86,11 @@ export function getHistorico() {
   }
 }
 
+// Upserts by osNumero: regenerating the same OS (before starting a new one)
+// updates its existing entry instead of adding a duplicate.
 export function addHistoricoEntry(entry) {
-  const historico = [entry, ...getHistorico()];
+  const semEsteOs = getHistorico().filter((item) => item.osNumero !== entry.osNumero);
+  const historico = [entry, ...semEsteOs];
   localStorage.setItem(STORAGE_KEYS.historico, JSON.stringify(historico));
   return historico;
 }

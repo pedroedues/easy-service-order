@@ -26,10 +26,12 @@ const dom = {
 
 const empresaInicial = repository.getEmpresa();
 const draftSalvo = repository.getDraft();
+const currentOsSeq = repository.getCurrentOsSeq();
 
 const store = createStore({
   empresa: empresaInicial,
-  osSeq: repository.peekNextOsNumber(),
+  osSeq: currentOsSeq ?? repository.peekNextOsNumber(),
+  osConsumido: currentOsSeq !== null,
   draft: draftSalvo || createEmptyDraft(),
   ui: {
     modalEmpresaOpen: !empresaInicial?.nome,
@@ -175,14 +177,25 @@ function validarDraft(state) {
 }
 
 async function gerarPdf() {
-  const state = store.getState();
+  let state = store.getState();
   const erros = validarDraft(state);
   if (erros.length > 0) {
     showToast(erros[0], 'error');
     return;
   }
 
-  const osSeq = repository.consumeNextOsNumber();
+  // Reuse the OS number already assigned to this draft, if any — only
+  // "Nova OS" advances the counter. Otherwise "Gerar PDF" twice on the same
+  // job (fixing a typo, say) would burn two numbers for one OS.
+  let { osSeq } = state;
+  if (!state.osConsumido) {
+    osSeq = repository.consumeNextOsNumber();
+    repository.setCurrentOsSeq(osSeq);
+    store.setState({ osSeq, osConsumido: true });
+    state = store.getState();
+    renderHeader(state);
+  }
+
   showToast('Gerando PDF...');
 
   try {
@@ -203,10 +216,7 @@ async function gerarPdf() {
       pecas: state.draft.pecas.filter(isValidItem),
       total: totalGerado,
     });
-
-    repository.clearDraft();
-    store.setState({ draft: createEmptyDraft(), osSeq: repository.peekNextOsNumber() });
-    renderAll(store.getState());
+    renderHistorico(dom.historicoRoot, repository.getHistorico());
 
     dom.whatsappLink.hidden = false;
     dom.whatsappLink.href = buildWhatsappLink({
@@ -244,7 +254,12 @@ function novaOs() {
   if (!confirmado) return;
 
   repository.clearDraft();
-  store.setState({ draft: createEmptyDraft() });
+  repository.setCurrentOsSeq(null);
+  store.setState({
+    draft: createEmptyDraft(),
+    osSeq: repository.peekNextOsNumber(),
+    osConsumido: false,
+  });
   dom.whatsappLink.hidden = true;
   renderAll(store.getState());
 }
