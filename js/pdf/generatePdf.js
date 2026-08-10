@@ -34,13 +34,35 @@ async function ensurePdfLibs() {
 }
 
 export async function generatePdf({ empresa, osSeq, draft }) {
+  const now = new Date();
+  const osNumero = formatOsNumber(osSeq, now);
+  return buildAndSave({ empresa, osNumero, now, draft });
+}
+
+// Reprints a PDF exactly as originally issued, from a stored histórico
+// snapshot — same OS number, same emission date, same empresa data as it
+// was at the time (not whatever the config screen holds today).
+export async function regeneratePdf(entry) {
+  const draft = {
+    cliente: entry.cliente,
+    veiculo: entry.veiculo,
+    servicos: entry.servicos,
+    pecas: entry.pecas,
+  };
+  return buildAndSave({
+    empresa: entry.empresa,
+    osNumero: entry.osNumero,
+    now: new Date(entry.dataHora),
+    draft,
+  });
+}
+
+async function buildAndSave({ empresa, osNumero, now, draft }) {
   await ensurePdfLibs();
   const { jsPDF } = window.jspdf;
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const now = new Date();
-  const osNumero = formatOsNumber(osSeq, now);
   const servicosValidos = draft.servicos.filter(isValidItem);
   const pecasValidas = draft.pecas.filter(isValidItem);
   const total = calcValidGrandTotal(draft);

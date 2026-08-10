@@ -194,9 +194,14 @@ async function gerarPdf() {
 
     repository.addHistoricoEntry({
       osNumero,
-      cliente: state.draft.cliente.nome,
-      total: totalGerado,
+      osSeq,
       dataHora: new Date().toISOString(),
+      empresa: { ...state.empresa },
+      cliente: { ...state.draft.cliente },
+      veiculo: { ...state.draft.veiculo },
+      servicos: state.draft.servicos.filter(isValidItem),
+      pecas: state.draft.pecas.filter(isValidItem),
+      total: totalGerado,
     });
 
     repository.clearDraft();
@@ -213,6 +218,21 @@ async function gerarPdf() {
       total: totalGerado,
     });
     showToast('PDF gerado com sucesso.', 'success');
+  } catch (error) {
+    console.error(error);
+    showToast('Não foi possível gerar o PDF.', 'error');
+  }
+}
+
+async function reimprimirOs(index) {
+  const entry = repository.getHistorico()[Number(index)];
+  if (!entry) return;
+
+  showToast('Gerando PDF...');
+  try {
+    const { regeneratePdf } = await import('./pdf/generatePdf.js');
+    await regeneratePdf(entry);
+    showToast('PDF gerado novamente.', 'success');
   } catch (error) {
     console.error(error);
     showToast('Não foi possível gerar o PDF.', 'error');
@@ -291,6 +311,9 @@ document.addEventListener('click', (event) => {
       break;
     case 'remove-item':
       removeItem(section, index);
+      break;
+    case 'reimprimir-os':
+      reimprimirOs(index);
       break;
     case 'gerar-pdf':
       gerarPdf();
