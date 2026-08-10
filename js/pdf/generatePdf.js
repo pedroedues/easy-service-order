@@ -48,7 +48,7 @@ export async function generatePdf({ empresa, osSeq, draft }) {
 
   drawHeader(doc, { empresa, osNumero, data: formatDate(now), pageWidth });
 
-  let cursorY = 45;
+  let cursorY = 50;
   cursorY = drawInfoSection(doc, cursorY, 'Cliente', [draft.cliente.nome, draft.cliente.contato]);
 
   const placa = normalizePlaca(draft.veiculo.placa);
@@ -70,8 +70,14 @@ export async function generatePdf({ empresa, osSeq, draft }) {
   drawSignatures(doc, cursorY, pageWidth, empresa?.responsavel);
   drawFooterOnAllPages(doc, { codigo, emitidoEm: formatDateTime(now) });
 
-  const nomeArquivo = `${sanitizeFilename(osNumero)}_${sanitizeFilename(draft.cliente.nome || 'cliente')}.pdf`;
-  doc.save(nomeArquivo);
+  doc.save(buildFilename(osNumero, draft.cliente.nome, placa));
+}
+
+function buildFilename(osNumero, clienteNome, placa) {
+  const partes = [sanitizeFilename(osNumero)];
+  if (placa) partes.push(sanitizeFilename(placa));
+  partes.push(sanitizeFilename(clienteNome || 'cliente'));
+  return `${partes.join('_')}.pdf`;
 }
 
 function extractImageFormat(dataUrl) {
@@ -82,35 +88,45 @@ function extractImageFormat(dataUrl) {
 }
 
 function drawHeader(doc, { empresa, osNumero, data, pageWidth }) {
+  const headerTop = 14;
   let textX = MARGIN;
 
   if (empresa?.logo) {
     const maxH = 16;
     const ratio = (empresa.logoW && empresa.logoH) ? empresa.logoW / empresa.logoH : 1;
     const width = maxH * ratio;
-    doc.addImage(empresa.logo, extractImageFormat(empresa.logo), MARGIN, 12, width, maxH);
+    doc.addImage(empresa.logo, extractImageFormat(empresa.logo), MARGIN, headerTop, width, maxH);
     textX = MARGIN + width + 6;
   }
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(INK);
-  doc.text(empresa?.nome || '', textX, 22);
+  doc.text(empresa?.nome || '', textX, headerTop + 11);
+
+  const boxWidth = 52;
+  const boxHeight = 18;
+  const boxX = pageWidth - MARGIN - boxWidth;
+  const boxY = headerTop - 2;
+  const boxCenterX = boxX + boxWidth / 2;
 
   doc.setDrawColor(STEEL);
   doc.setLineWidth(0.4);
-  doc.rect(pageWidth - MARGIN - 45, 12, 45, 12);
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(11);
+  doc.roundedRect(boxX, boxY, boxWidth, boxHeight, 1.5, 1.5);
+
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(12);
   doc.setTextColor(INK);
-  doc.text(osNumero, pageWidth - MARGIN - 42, 19);
+  doc.text(osNumero, boxCenterX, boxY + 8, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(INK_MUTED);
-  doc.text(data, pageWidth - MARGIN - 42, 23.5);
+  doc.text(data, boxCenterX, boxY + 14, { align: 'center' });
 
   doc.setDrawColor(INK);
   doc.setLineWidth(0.6);
-  doc.line(MARGIN, 35, pageWidth - MARGIN, 35);
+  doc.line(MARGIN, 40, pageWidth - MARGIN, 40);
 }
 
 function drawInfoSection(doc, y, titulo, linhas) {
