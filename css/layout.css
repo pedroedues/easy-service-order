@@ -56,6 +56,10 @@
   align-items: center;
 }
 
+.form-actions + .form-section {
+  margin-top: var(--space-5);
+}
+
 .preview-toggle,
 .preview-panel__back {
   display: none;

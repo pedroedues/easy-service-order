@@ -15,12 +15,13 @@ function renderEntry(entry, index) {
   const veiculoLabel = [entry.veiculo?.tipo, entry.veiculo?.modelo].filter(Boolean).join(' · ');
   const placa = normalizePlaca(entry.veiculo?.placa);
   const veiculoLinha = [veiculoLabel, placa ? `Placa ${placa}` : ''].filter(Boolean).join(' · ');
+  const resumoCliente = [entry.cliente?.nome, entry.veiculo?.modelo].filter(Boolean).join(' · ') || '—';
 
   return `
     <details class="historico-item">
       <summary class="historico-item__summary">
         <span class="historico-item__os mono">${escapeHtml(entry.osNumero)}</span>
-        <span class="historico-item__cliente">${escapeHtml(entry.cliente?.nome) || '—'}</span>
+        <span class="historico-item__cliente">${escapeHtml(resumoCliente)}</span>
         <span class="historico-item__total mono">${brl(entry.total)}</span>
       </summary>
       <div class="historico-item__body">

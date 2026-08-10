@@ -22,6 +22,7 @@ const dom = {
   modalRoot: document.getElementById('modal-root'),
   whatsappLink: document.getElementById('whatsapp-link'),
   historicoRoot: document.getElementById('historico-root'),
+  historicoSection: document.getElementById('historico-section'),
 };
 
 const empresaInicial = repository.getEmpresa();
@@ -273,6 +274,11 @@ function togglePreview() {
   dom.previewPanel.dataset.open = String(!aberto);
 }
 
+function toggleHistorico() {
+  const aberto = dom.historicoSection.dataset.open === 'true';
+  dom.historicoSection.dataset.open = String(!aberto);
+}
+
 // --- delegação de eventos ---
 // main.js concentra a ligação entre eventos de entrada e o store; os módulos
 // de UI só renderizam a partir do estado que recebem.
@@ -342,8 +348,20 @@ document.addEventListener('click', (event) => {
     case 'toggle-preview':
       togglePreview();
       break;
+    case 'toggle-historico':
+      toggleHistorico();
+      break;
     default:
       break;
+  }
+});
+
+document.addEventListener('dblclick', (event) => {
+  const trigger = event.target.closest('[data-dblclick-action]');
+  if (!trigger) return;
+
+  if (trigger.dataset.dblclickAction === 'toggle-historico') {
+    toggleHistorico();
   }
 });
 

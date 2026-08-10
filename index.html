@@ -65,9 +65,12 @@
           </a>
         </div>
 
-        <div class="form-section card">
-          <h2 class="section-title">OS geradas nesta sessão</h2>
-          <div id="historico-root"></div>
+        <div class="form-section card historico-section" id="historico-section">
+          <div class="historico-header" data-dblclick-action="toggle-historico">
+            <h2 class="section-title">OS geradas nesta sessão</h2>
+            <button type="button" class="historico-header__chevron" data-action="toggle-historico" aria-label="Mostrar ou ocultar histórico">▾</button>
+          </div>
+          <div id="historico-root" class="historico-collapsible"></div>
         </div>
       </section>
 
