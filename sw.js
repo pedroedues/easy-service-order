@@ -1,6 +1,6 @@
 // Bump this on any release that changes cached files — the activate handler
 // deletes every cache that doesn't match, so stale assets don't stick around.
-const CACHE_NAME = 'talao-os-v1';
+const CACHE_NAME = 'talao-os-v2';
 
 const APP_SHELL = [
   '.',
@@ -27,6 +27,10 @@ const APP_SHELL = [
   'icons/icon-512.png',
 ];
 
+// Vendor libs and icons are heavy, third-party, and effectively immutable —
+// safe (and faster) to serve straight from cache.
+const CACHE_FIRST_PATTERNS = [/\/js\/vendor\//, /\/icons\//];
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
@@ -43,26 +47,44 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Stale-while-revalidate: serve from cache instantly when available, refresh
-// the cache in the background. Anything not in APP_SHELL (the PDF libs,
-// fonts) gets cached the first time it's actually requested, so PDF
-// generation still works offline after the first successful run.
+// The app's own code (HTML/CSS/JS) uses network-first: while online, a
+// deploy takes effect on the very next reload instead of silently serving a
+// stale cached module (which once meant a reprint button whose cached JS
+// still lacked the function it needed to call). The cache here only kicks
+// in when there's no network at all.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-
-      return cached || network;
-    }),
-  );
+  const isCacheFirst = CACHE_FIRST_PATTERNS.some((pattern) => pattern.test(event.request.url));
+  event.respondWith(isCacheFirst ? cacheFirst(event.request) : networkFirst(event.request));
 });
+
+async function networkFirst(request) {
+  try {
+    // Bypass the browser's own HTTP cache too — a Last-Modified/ETag-based
+    // heuristic cache hit would silently reintroduce the same staleness
+    // this strategy exists to avoid.
+    const response = await fetch(request, { cache: 'reload' });
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    throw new Error('Sem rede e sem versão em cache para esta requisição.');
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, response.clone());
+  }
+  return response;
+}
