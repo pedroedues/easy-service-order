@@ -1,6 +1,6 @@
 // Bump this on any release that changes cached files — the activate handler
 // deletes every cache that doesn't match, so stale assets don't stick around.
-const CACHE_NAME = 'talao-os-v2';
+const CACHE_NAME = 'talao-os-v3';
 
 const APP_SHELL = [
   '.',
@@ -54,6 +54,10 @@ self.addEventListener('activate', (event) => {
 // in when there's no network at all.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Only http(s) requests are cacheable — chrome-extension:// and similar
+  // schemes (from browser extensions sharing this page) make Cache.put()
+  // throw, so leave those to the browser's normal handling.
+  if (!event.request.url.startsWith('http')) return;
 
   const isCacheFirst = CACHE_FIRST_PATTERNS.some((pattern) => pattern.test(event.request.url));
   event.respondWith(isCacheFirst ? cacheFirst(event.request) : networkFirst(event.request));
