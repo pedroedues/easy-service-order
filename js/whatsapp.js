@@ -29,10 +29,14 @@ export function buildWhatsappMessage({ empresaNome, cliente, veiculo, servicos, 
   return partes.join('\n\n');
 }
 
+export function hasValidPhone(contato) {
+  return (contato || '').replace(/\D/g, '').length >= 10;
+}
+
 export function buildWhatsappLink({ empresaNome, cliente, veiculo, servicos, pecas, total }) {
   const digits = (cliente?.contato || '').replace(/\D/g, '');
-  const numero = digits.length >= 10 ? `55${digits.replace(/^55/, '')}` : '';
+  const numero = `55${digits.replace(/^55/, '')}`;
   const mensagem = buildWhatsappMessage({ empresaNome, cliente, veiculo, servicos, pecas, total });
   const texto = encodeURIComponent(mensagem);
-  return numero ? `https://wa.me/${numero}?text=${texto}` : `https://wa.me/?text=${texto}`;
+  return `https://wa.me/${numero}?text=${texto}`;
 }

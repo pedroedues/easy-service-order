@@ -6,7 +6,7 @@ import { renderPreview } from './ui/preview.js';
 import { renderModalEmpresa } from './ui/modalEmpresa.js';
 import { renderHistorico } from './ui/historico.js';
 import { showToast } from './ui/toast.js';
-import { buildWhatsappLink } from './whatsapp.js';
+import { buildWhatsappLink, hasValidPhone } from './whatsapp.js';
 import { brl, formatOsNumber, escapeHtml } from './utils/format.js';
 
 const dom = {
@@ -223,15 +223,19 @@ async function gerarPdf() {
     });
     renderHistorico(dom.historicoRoot, repository.getHistorico());
 
-    dom.whatsappLink.hidden = false;
-    dom.whatsappLink.href = buildWhatsappLink({
-      empresaNome: state.empresa?.nome || '',
-      cliente: state.draft.cliente,
-      veiculo: state.draft.veiculo,
-      servicos: state.draft.servicos,
-      pecas: state.draft.pecas,
-      total: totalGerado,
-    });
+    if (hasValidPhone(state.draft.cliente.contato)) {
+      dom.whatsappLink.hidden = false;
+      dom.whatsappLink.href = buildWhatsappLink({
+        empresaNome: state.empresa?.nome || '',
+        cliente: state.draft.cliente,
+        veiculo: state.draft.veiculo,
+        servicos: state.draft.servicos,
+        pecas: state.draft.pecas,
+        total: totalGerado,
+      });
+    } else {
+      dom.whatsappLink.hidden = true;
+    }
     showToast('PDF gerado com sucesso.', 'success');
   } catch (error) {
     console.error(error);
