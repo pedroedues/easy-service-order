@@ -40,8 +40,10 @@ export async function generatePdf({ empresa, osSeq, draft }) {
 }
 
 // Reprints a PDF exactly as originally issued, from a stored histórico
-// snapshot — same OS number, same emission date, same empresa data as it
-// was at the time (not whatever the config screen holds today).
+// snapshot — same OS number, same emission date, same empresa name/
+// responsável as they were at the time. The logo isn't part of the
+// snapshot (storing it per entry is what blew the localStorage quota), so
+// reprints come out without one.
 export async function regeneratePdf(entry) {
   const draft = {
     cliente: entry.cliente,
@@ -50,7 +52,7 @@ export async function regeneratePdf(entry) {
     pecas: entry.pecas,
   };
   return buildAndSave({
-    empresa: entry.empresa,
+    empresa: { nome: entry.empresaNome, responsavel: entry.responsavel },
     osNumero: entry.osNumero,
     now: new Date(entry.dataHora),
     draft,

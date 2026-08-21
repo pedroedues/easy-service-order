@@ -210,7 +210,11 @@ async function gerarPdf() {
       osNumero,
       osSeq,
       dataHora: new Date().toISOString(),
-      empresa: { ...state.empresa },
+      // Deliberately not the whole empresa object — its logo is a base64
+      // image that, duplicated per entry, blew past localStorage's quota
+      // after just a handful of OS's.
+      empresaNome: state.empresa?.nome || '',
+      responsavel: state.empresa?.responsavel || '',
       cliente: { ...state.draft.cliente },
       veiculo: { ...state.draft.veiculo },
       servicos: state.draft.servicos.filter(isValidItem),

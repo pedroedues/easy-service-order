@@ -50,7 +50,11 @@ export function saveDraft(draft) {
   // Swap for `await fetch('/api/draft', { method: 'PUT', body: ... })`.
   clearTimeout(draftSaveTimer);
   draftSaveTimer = setTimeout(() => {
-    localStorage.setItem(STORAGE_KEYS.draft, JSON.stringify(draft));
+    try {
+      localStorage.setItem(STORAGE_KEYS.draft, JSON.stringify(draft));
+    } catch (error) {
+      console.error('Não foi possível salvar o rascunho', error);
+    }
   }, DRAFT_SAVE_DELAY_MS);
 }
 
@@ -86,11 +90,29 @@ export function getHistorico() {
   }
 }
 
+function isQuotaExceeded(error) {
+  return error && (error.name === 'QuotaExceededError' || error.code === 22 || error.code === 1014);
+}
+
 // Upserts by osNumero: regenerating the same OS (before starting a new one)
-// updates its existing entry instead of adding a duplicate.
+// updates its existing entry instead of adding a duplicate. If storage is
+// full, the oldest entries are dropped one at a time until it fits, rather
+// than letting the quota error crash PDF generation.
 export function addHistoricoEntry(entry) {
   const semEsteOs = getHistorico().filter((item) => item.osNumero !== entry.osNumero);
-  const historico = [entry, ...semEsteOs];
-  localStorage.setItem(STORAGE_KEYS.historico, JSON.stringify(historico));
+  let historico = [entry, ...semEsteOs];
+
+  while (historico.length > 0) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.historico, JSON.stringify(historico));
+      return historico;
+    } catch (error) {
+      if (!isQuotaExceeded(error) || historico.length === 1) {
+        console.error('Não foi possível salvar o histórico', error);
+        return historico;
+      }
+      historico = historico.slice(0, -1);
+    }
+  }
   return historico;
 }
